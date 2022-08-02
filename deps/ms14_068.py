@@ -218,15 +218,13 @@ class RemoteOperationsReg:
         ans = scmr.hRQueryServiceStatus(self.__scmr,
                 self.__serviceHandle)
         if ans['lpServiceStatus']['dwCurrentState'] \
-            == scmr.SERVICE_STOPPED:
-            logging.info('Service %s is in stopped state'
-                         % self.__serviceName)
+                == scmr.SERVICE_STOPPED:
+            logging.info(f'Service {self.__serviceName} is in stopped state')
             self.__shouldStop = True
             self.__started = False
         elif ans['lpServiceStatus']['dwCurrentState'] \
-            == scmr.SERVICE_RUNNING:
-            logging.debug('Service %s is already running'
-                          % self.__serviceName)
+                == scmr.SERVICE_RUNNING:
+            logging.debug(f'Service {self.__serviceName} is already running')
             self.__shouldStop = False
             self.__started = True
         else:
@@ -239,12 +237,11 @@ class RemoteOperationsReg:
             ans = scmr.hRQueryServiceConfigW(self.__scmr,
                     self.__serviceHandle)
             if ans['lpServiceConfig']['dwStartType'] == 0x4:
-                logging.info('Service %s is disabled, enabling it'
-                             % self.__serviceName)
+                logging.info(f'Service {self.__serviceName} is disabled, enabling it')
                 self.__disabled = True
                 scmr.hRChangeServiceConfigW(self.__scmr,
                         self.__serviceHandle, dwStartType=0x3)
-            logging.info('Starting service %s' % self.__serviceName)
+            logging.info(f'Starting service {self.__serviceName}')
             scmr.hRStartServiceW(self.__scmr, self.__serviceHandle)
             time.sleep(1)
 
@@ -258,12 +255,11 @@ class RemoteOperationsReg:
         # First of all stop the service if it was originally stopped
 
         if self.__shouldStop is True:
-            logging.info('Stopping service %s' % self.__serviceName)
+            logging.info(f'Stopping service {self.__serviceName}')
             scmr.hRControlService(self.__scmr, self.__serviceHandle,
                                   scmr.SERVICE_CONTROL_STOP)
         if self.__disabled is True:
-            logging.info('Restoring the disabled state for service %s'
-                         % self.__serviceName)
+            logging.info(f'Restoring the disabled state for service {self.__serviceName}')
             scmr.hRChangeServiceConfigW(self.__scmr,
                     self.__serviceHandle, dwStartType=0x4)
 
@@ -409,38 +405,30 @@ class RegHandler:
             rootKey = keyName.split('\\')[0]
             subKey = '\\'.join(keyName.split('\\')[1:])
         except Exception:
-            raise Exception('Error parsing keyName %s' % keyName)
+            raise Exception(f'Error parsing keyName {keyName}')
 
         if rootKey.upper() == 'HKLM':
             ans = rrp.hOpenLocalMachine(dce)
-        elif rootKey.upper() == 'HKU' or rootKey.upper() == 'HKCU':
+        elif rootKey.upper() in ['HKU', 'HKCU']:
             ans = rrp.hOpenCurrentUser(dce)
         elif rootKey.upper() == 'HKCR':
             ans = rrp.hOpenClassesRoot(dce)
         else:
-            raise Exception('Invalid root key %s ' % rootKey)
+            raise Exception(f'Invalid root key {rootKey} ')
 
         hRootKey = ans['phKey']
         ans2 = rrp.hBaseRegOpenKey(dce, hRootKey, subKey,
                                    samDesired=rrp.MAXIMUM_ALLOWED
                                    | rrp.KEY_ENUMERATE_SUB_KEYS
                                    | rrp.KEY_QUERY_VALUE)
-        if len(selectedKey) > 0:
-            value = rrp.hBaseRegQueryValue(dce, ans2['phkResult'],
-                    str(selectedKey))
-            return str(value[1])
-        else:
+        if len(selectedKey) <= 0:
+            return self.__print_all_entries(
+                dce, subKey + '\\', ans2['phkResult'], 0
+            )
 
-            # print '\t' + self.__options.v + '\t' + self.__regValues.get(value[0], 'KEY_NOT_FOUND') + '\t', str(value[1])
-        # elif self.__options.ve:
-        #    print keyName
-        #    value = rrp.hBaseRegQueryValue(dce, ans2['phkResult'], '')
-        #    print '\t' + '(Default)' + '\t' + self.__regValues.get(value[0], 'KEY_NOT_FOUND') + '\t', str(value[1])
-        # elif self.__selectedKey==None:
-
-            entriesList = self.__print_all_entries(dce, subKey + '\\',
-                    ans2['phkResult'], 0)
-            return entriesList
+        value = rrp.hBaseRegQueryValue(dce, ans2['phkResult'],
+                str(selectedKey))
+        return str(value[1])
 
             # self.__print_all_subkeys_and_entries(dce, subKey + '\\', ans2['phkResult'], 0)
         # else:
@@ -613,29 +601,23 @@ def listDatabases(db,conn):
     sql_query='USE master; SELECT NAME FROM sysdatabases;'
     results= conn.RunSQLQuery(db,sql_query,tuplemode=False,wait=True)
     dbList=[]
-    defaultDBList=[]
-    defaultDBList.append('master')
-    defaultDBList.append('tempdb')
-    defaultDBList.append('model')
-    defaultDBList.append('msdb')
+    defaultDBList = ['master', 'tempdb', 'model', 'msdb']
     for x in results:
-        for k, v in x.iteritems():
-            if v not in defaultDBList:  
-                dbList.append(v)
+        dbList.extend(v for k, v in x.iteritems() if v not in defaultDBList)
     return dbList
 
 def listTables(db,conn,dbName):
-    sql_query='SELECT * FROM '+dbName+'.INFORMATION_SCHEMA.TABLES;'
+    sql_query = f'SELECT * FROM {dbName}.INFORMATION_SCHEMA.TABLES;'
     results= conn.RunSQLQuery(db,sql_query,tuplemode=False,wait=True)
-    tableList=[]
-    for x in results:
-        if x.values()[3]=='BASE TABLE':
-            tableList.append([x.values()[0],x.values()[2]])
-    return tableList
+    return [
+        [x.values()[0], x.values()[2]]
+        for x in results
+        if x.values()[3] == 'BASE TABLE'
+    ]
     #print tabulate(tableList)
 
 def listColumns(db,conn,dbName,tableName):
-    sql_query='use '+dbName+';exec sp_columns '+tableName+';'
+    sql_query = f'use {dbName};exec sp_columns {tableName};'
     results= conn.RunSQLQuery(db,sql_query,tuplemode=False,wait=True)
     columnList=[]
     for x in results:
@@ -753,11 +735,8 @@ def testAdminAccess(tmphostno, tmpdomain, tmpusername, tmppassword, tmppasswordH
         return False
     '''
     command="ipconfig.exe"
-    results=runPSEXEC(tmphostno, tmpdomain, tmpusername, tmppassword, tmppasswordHash, command)        
-    if len(results)>0 and type(results)!=None:
-        return True
-    else:
-        return False
+    results=runPSEXEC(tmphostno, tmpdomain, tmpusername, tmppassword, tmppasswordHash, command)
+    return len(results)>0 and type(results)!=None
 
 
 def testDomainCredentials(username,password,passwordHash,ip,domain):
@@ -766,10 +745,10 @@ def testDomainCredentials(username,password,passwordHash,ip,domain):
         print (setColor("[-]", bold, color="red"))+" "+ip+":445 "+getNetBiosName(ip)+" | "+domain+"\\"+username+":"+password+" [FAILED]"
         return False,foundAdmin
     else:
-        if password!=None:
-            attemptedCredList.append([str(ip),str(domain).lower(),str(username),str(password)])
-        else:
+        if password is None:
             attemptedCredList.append([str(ip),str(domain).lower(),str(username),str(passwordHash)])
+        else:
+            attemptedCredList.append([str(ip),str(domain).lower(),str(username),str(password)])
         if passwordHash!=None:
             password=None
             if testAdminAccess(ip, domain, username, password, passwordHash)==True:
@@ -785,7 +764,16 @@ def testDomainCredentials(username,password,passwordHash,ip,domain):
                 return False,foundAdmin
         else:
             try:
-                command="medusa -M smbnt -u "+domain+"\\\\"+username+" -p '"+password+"' -h "+ip
+                command = (
+                    f"medusa -M smbnt -u {domain}"
+                    + "\\\\"
+                    + username
+                    + " -p '"
+                    + password
+                    + "' -h "
+                    + ip
+                )
+
                 resultList = runCommand(command, shell = True, timeout = 30)
                 if "SUCCESS" in str(resultList):
                     if testAdminAccess(ip, domain, username, password, passwordHash)==True:
@@ -833,12 +821,17 @@ def testDomainCredentials(username,password,passwordHash,ip,domain):
 def testDomainCredentials1(username,password,hostNo):
     ansi_escape = re.compile(r'\x1b[^m]*m')
     password = ansi_escape.sub('', password)
-    cmd = "rpcclient -U "+username+"%'"+password+"' "+hostNo+"  -c 'enumdomgroups'"
+    cmd = (
+        f"rpcclient -U {username}"
+        + "%'"
+        + password
+        + "' "
+        + hostNo
+        + "  -c 'enumdomgroups'"
+    )
+
     resultList = runCommand(cmd, shell = True, timeout = 30)
-    if "group:" in str(resultList):
-        return True
-    else:
-        return False
+    return "group:" in str(resultList)
 
 def getDomainAdminUsers(username,password,hostNo):
     results=False
@@ -896,7 +889,21 @@ def getDomainAdminUsers(username,password,hostNo):
 def runPSEXEC(targetIP,domain,username,password,passwordHash,command):
     resultsOutput=''
     try:
-        executer = PSEXEC(command,None,None,None,int(445),username,password,domain,passwordHash,None,False,None)       
+        executer = PSEXEC(
+            command,
+            None,
+            None,
+            None,
+            445,
+            username,
+            password,
+            domain,
+            passwordHash,
+            None,
+            False,
+            None,
+        )
+
         executer.run(targetIP,targetIP)
         resultsOutput=executer.getOutput()
         executer.clearOutput()
@@ -924,11 +931,9 @@ def setDemo():
     cmd ='date +%Y%m%d -s "20120418"'
     runCommand1(cmd)
 def checkCurrentTime():
-    currentTime=runCommand1("date")
-    return currentTime
+    return runCommand1("date")
 def checkRemoteTime(targetIP):
-    remoteTime=runCommand1("net time -S "+targetIP)
-    return remoteTime
+    return runCommand1(f"net time -S {targetIP}")
 def get_process_children(pid):
     p = Popen('ps --no-headers -o pid --ppid %d' % pid, shell = True,
               stdout = PIPE, stderr = PIPE)
@@ -967,16 +972,15 @@ def runCommand1(fullCmd):
         print e
         return "Error executing command %s" %(fullCmd)
 def setColor(message, bold=False, color=None, onColor=None):
-    retVal = colored(message, color=color, on_color=onColor, attrs=("bold",))
-    return retVal
+    return colored(message, color=color, on_color=onColor, attrs=("bold",))
 
 def convertWinToLinux(filename):
-    tmpFilename="/tmp/"+generateRandomStr()+".txt"
+    tmpFilename = f"/tmp/{generateRandomStr()}.txt"
     sourceEncoding = "utf-16"
     targetEncoding = "utf-8"
     source = open(filename)
     target = open(tmpFilename, "w")
-    target.write(unicode(source.read(), sourceEncoding).encode(targetEncoding))    
+    target.write(unicode(source.read(), sourceEncoding).encode(targetEncoding))
     return tmpFilename
 
 
@@ -1141,8 +1145,8 @@ def reverseLookup(ip):
     domainShort=''
     domainFull=''
     domain=""
-    command="nmap --script smb-os-discovery.nse -p445 "+ip
-    results = runCommand(command, shell = True, timeout = 15) 
+    command = f"nmap --script smb-os-discovery.nse -p445 {ip}"
+    results = runCommand(command, shell = True, timeout = 15)
     resultList=results[1].split("\n")
     for x in resultList:
         if "|   Domain name: " in x:
@@ -1155,15 +1159,10 @@ def reverseLookup(ip):
     return domainShort,domainFull
 
 def powershell_encode(data):
-    # blank command will store our fixed unicode variable
-    blank_command = ""
     powershell_command = ""
     # Remove weird chars that could have been added by ISE
     n = re.compile(u'(\xef|\xbb|\xbf)')
-    # loop through each character and insert null byte
-    for char in (n.sub("", data)):
-        # insert the nullbyte
-        blank_command += char + "\x00"
+    blank_command = "".join(char + "\x00" for char in (n.sub("", data)))
     # assign powershell command as the new one
     powershell_command = blank_command
     # base64 encode the powershell command
@@ -1177,19 +1176,15 @@ def uploadFile(remoteFilename,localFilename,targetIP, domain, username, password
 def getPowershellPath(osArch64):
     cmd=""
     if osArch64==True:
-        cmd="C:\\windows\\system32\\WindowsPowerShell\\v1.0\\powershell.exe"
+        return "C:\\windows\\system32\\WindowsPowerShell\\v1.0\\powershell.exe"
     else:
-        cmd="C:\\windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe"
-    return cmd
+        return "C:\\windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe"
 
 def getPowershellVersion(targetIP,domain,username,password,passwordHash):
     command='powershell -Command $Env:PROCESSOR_ARCHITECTURE'
-    try:                    
-        results=runWMIEXEC(targetIP, domain, username, password, passwordHash,command)        
-        if "AMD64" in results:
-            return True
-        else :
-            return False
+    try:            
+        results=runWMIEXEC(targetIP, domain, username, password, passwordHash,command)
+        return "AMD64" in results
     except:
         return True
 

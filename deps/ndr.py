@@ -30,7 +30,7 @@ class ndr_opcode:
         self.opnum = kwargs.get('opnum', 0x0)
         self.address = kwargs.get('address', 0x00000000)
         self.elements = kwargs.get('elements', [])
-        self.out = kwargs.get('out', None)
+        self.out = kwargs.get('out')
         self.align_byte = kwargs.get('align_byte', "\xaa")
         
     def align(self, data):
@@ -283,12 +283,11 @@ class ndr_range(ndr_primitive):
     def serialize(self):
         if not self.data:
             self.data = ndr_long(data=random.randint(self.low, self.high))
-        else:
-            if self.data.get_data() > self.high:
-                self.data.data = self.high
-            elif self.data.get_data() < self.low:
-                self.data.data = self.low
-                
+        elif self.data.get_data() > self.high:
+            self.data.data = self.high
+        elif self.data.get_data() < self.low:
+            self.data.data = self.low
+
         return self.data.serialize()
 
 class ndr_enum16(ndr_primitive):
@@ -793,20 +792,20 @@ class ndr_union:
         
     def serialize(self):
         serialdata = ""
-        
+
         switch = self.switch_dep.get_data()
         if self.elements.has_key(switch):
             serialdata += self.switch_dep.serialize()
-        
+
             # Pack our requested enum
             serialdata += self.elements[switch].serialize()
         else:
             # This allows us to pick a switch for the user
             newswitch = self.elements.keys()[0]
-            
+
             # We need to update our original switch_dep so it passes correlation checks
             self.switch_dep.set_data(newswitch)
-            
+
             serialdata += ndr_long(data=newswitch).serialize()
             serialdata += self.elements[newswitch].serialize()
 
@@ -846,12 +845,12 @@ class ndr_unique(ndr_container):
         
     def serialize(self):
         self.add_static(ndr_long(data=self.pointer_value))
-        
+
         if isinstance(self.data, ndr_container):
             self.data.parent = self
-        
+
         self.add_deferred(self.data)
-        
+
         if not self.parent:
             while len(self.d):
                 d = self.d.pop(0)
@@ -859,18 +858,16 @@ class ndr_unique(ndr_container):
                     d.serialize()
                 else:
                     self.add_static(d)
-            
-            serialdata = ""
-            for s in self.s:
-                if isinstance(s, ndr_pad):
-                    serialdata += self.align(serialdata)
-                else:
-                    serialdata += s.serialize()
-            
+
+            serialdata = "".join(
+                self.align(serialdata) if isinstance(s, ndr_pad) else s.serialize()
+                for s in self.s
+            )
+
             self.parent = None
             self.s = []
             self.d = []
-            
+
             return serialdata
             
 class ndr_full(ndr_container):
@@ -902,12 +899,12 @@ class ndr_full(ndr_container):
         
     def serialize(self):
         self.add_static(ndr_long(data=self.pointer_value))
-        
+
         if isinstance(self.data, ndr_container):
             self.data.parent = self
-        
+
         self.add_deferred(self.data)
-        
+
         if not self.parent:
             while len(self.d):
                 d = self.d.pop(0)
@@ -915,18 +912,16 @@ class ndr_full(ndr_container):
                     d.serialize()
                 else:
                     self.add_static(d)
-            
-            serialdata = ""
-            for s in self.s:
-                if isinstance(s, ndr_pad):
-                    serialdata += self.align(serialdata)
-                else:
-                    serialdata += s.serialize()
-            
+
+            serialdata = "".join(
+                self.align(serialdata) if isinstance(s, ndr_pad) else s.serialize()
+                for s in self.s
+            )
+
             self.parent = None
             self.s = []
             self.d = []
-                
+
             return serialdata
             
 #######################################################################

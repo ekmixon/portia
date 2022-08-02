@@ -211,13 +211,16 @@ class RemoteShell(cmd.Cmd):
             self.transferClient.deleteFile(self.__share, OUTPUT_FILENAME)        
 
     def execute_remote(self, data):
-        command = self.__shell + 'echo ' + data + ' ^> ' + self.__output + ' 2^>^&1 > ' + self.__batchFile + ' & ' + \
-                  self.__shell + self.__batchFile
+        command = (
+            f'{self.__shell}echo {data} ^> {self.__output} 2^>^&1 > {self.__batchFile} & '
+            + self.__shell
+        ) + self.__batchFile
+
         if self.__mode == 'SERVER':
-            command += ' & ' + self.__copyBack
+            command += f' & {self.__copyBack}'
         command += ' & ' + 'del ' + self.__batchFile 
 
-        logging.debug('Executing %s' % command)
+        logging.debug(f'Executing {command}')
         resp = scmr.hRCreateServiceW(self.__scmr, self.__scHandle, self.__serviceName, self.__serviceName,
                                      lpBinaryPathName=command, dwStartType=scmr.SERVICE_DEMAND_START)
         service = resp['lpServiceHandle']

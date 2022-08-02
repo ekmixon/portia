@@ -35,7 +35,7 @@ from impacket.dcerpc.v5.dcomrt import DCOMConnection
 from impacket.dcerpc.v5.dcom import wmi
 from impacket.dcerpc.v5.dtypes import NULL
 
-OUTPUT_FILENAME = '__' + str(time.time())
+OUTPUT_FILENAME = f'__{str(time.time())}'
 CODEC = sys.getdefaultencoding()
 
 totalOutput=""
@@ -218,36 +218,31 @@ class RemoteShell(cmd.Cmd):
         return False
 
     def do_cd(self, s):
-        self.execute_remote('cd ' + s)
-        if len(self.__outputBuffer.strip('\r\n')) > 0:
-            #print self.__outputBuffer.decode(CODEC)
-            self.__outputBuffer = ''
-        else:
+        self.execute_remote(f'cd {s}')
+        if len(self.__outputBuffer.strip('\r\n')) <= 0:
             self.__pwd = ntpath.normpath(ntpath.join(self.__pwd, s.decode(sys.stdin.encoding)))
             self.execute_remote('cd ')
             self.__pwd = self.__outputBuffer.strip('\r\n').decode(CODEC)
-            self.prompt = unicode(self.__pwd + '>').encode(sys.stdout.encoding)
-            self.__outputBuffer = ''
+            self.prompt = unicode(f'{self.__pwd}>').encode(sys.stdout.encoding)
+        #print self.__outputBuffer.decode(CODEC)
+        self.__outputBuffer = ''
 
     def default(self, line):
         # Let's try to guess if the user is trying to change drive
         if len(line) == 2 and line[1] == ':':
             # Execute the command and see if the drive is valid
             self.execute_remote(line)
-            if len(self.__outputBuffer.strip('\r\n')) > 0: 
-                # Something went wrong
-                #print self.__outputBuffer.decode(CODEC)
-                self.__outputBuffer = ''
-            else:
+            if len(self.__outputBuffer.strip('\r\n')) <= 0:
                 # Drive valid, now we should get the current path
                 self.__pwd = line
                 self.execute_remote('cd ')
                 self.__pwd = self.__outputBuffer.strip('\r\n')
-                self.prompt = unicode(self.__pwd + '>').encode(sys.stdout.encoding)
-                self.__outputBuffer = ''
-        else:
-            if line != '':
-                self.send_data(line)
+                self.prompt = unicode(f'{self.__pwd}>').encode(sys.stdout.encoding)
+            # Something went wrong
+            #print self.__outputBuffer.decode(CODEC)
+            self.__outputBuffer = ''
+        elif line != '':
+            self.send_data(line)
 
     def get_output(self):
         def output_callback(data):
@@ -326,13 +321,13 @@ def load_smbclient_auth_file(path):
 
         if line.startswith('#') or line=='':
             continue
-            
+
         parts = line.split('=',1)
         if len(parts) != 2:
             raise AuthFileSyntaxError(path, lineno, 'No "=" present in line')
-        
+
         (k,v) = (parts[0].strip(), parts[1].strip())
-        
+
         if k=='username':
             username=v
         elif k=='password':
@@ -340,8 +335,8 @@ def load_smbclient_auth_file(path):
         elif k=='domain':
             domain=v
         else:
-            raise AuthFileSyntaxError(path, lineno, 'Unknown option %s' % repr(k))
-            
+            raise AuthFileSyntaxError(path, lineno, f'Unknown option {repr(k)}')
+
     return (domain, username, password)
 
 # Process command-line arguments.

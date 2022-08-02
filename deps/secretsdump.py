@@ -65,14 +65,8 @@ class DumpSecrets:
         self.__username = username
         self.__password = password
         self.__domain = domain
-        if passwordHash!=None:
-            self.__lmhash = passwordHash.split(':')[0]
-        else:
-            self.__lmhash = ''
-        if passwordHash!=None:
-            self.__nthash = passwordHash.split(':')[1]
-        else:
-            self.__nthash = ''
+        self.__lmhash = passwordHash.split(':')[0] if passwordHash!=None else ''
+        self.__nthash = passwordHash.split(':')[1] if passwordHash!=None else ''
         self.__aesKey = False
         #self.__aesKey = options.aesKey
         self.__smbConnection = None
@@ -111,7 +105,7 @@ class DumpSecrets:
         self.__canProcessSAMLSA = True
         #self.__kdcHost = options.dc_ip
         self.__kdcHost = None
-	self.__hashes = None
+        self.__hashes = None
 
         if self.__hashes is not None:
             self.__lmhash, self.__nthash = self.__hashes.split(':')

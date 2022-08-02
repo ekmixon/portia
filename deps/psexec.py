@@ -88,7 +88,7 @@ class PSEXEC:
     def run(self, remoteName, remoteHost):
 
         stringbinding = 'ncacn_np:%s[\pipe\svcctl]' % remoteName
-        logging.debug('StringBinding %s'%stringbinding)
+        logging.debug(f'StringBinding {stringbinding}')
         rpctransport = transport.DCERPCTransportFactory(stringbinding)
         rpctransport.set_dport(self.__port)
         rpctransport.setRemoteHost(remoteHost)
@@ -104,22 +104,20 @@ class PSEXEC:
     def openPipe(self, s, tid, pipe, accessMask):
         pipeReady = False
         tries = 50
-        while pipeReady is False and tries > 0:
+        while not pipeReady and tries > 0:
             try:
                 s.waitNamedPipe(tid,pipe)
                 pipeReady = True
             except:
                 tries -= 1
                 time.sleep(2)
-                pass
-
         if tries == 0:
             #logging.critical('Pipe not ready, aborting')
             raise
 
-        fid = s.openFile(tid,pipe,accessMask, creationOption = 0x40, fileAttributes = 0x80)
-
-        return fid
+        return s.openFile(
+            tid, pipe, accessMask, creationOption=0x40, fileAttributes=0x80
+        )
 
     def doStuff(self, rpctransport):
 
@@ -260,9 +258,6 @@ class Pipes(Thread):
             self.server.setTimeout(1000000)
         except:
             import traceback
-            #traceback.print_exc()
-            #logging.error("Something wen't wrong connecting the pipes(%s), try again" % self.__class__)
-            pass
 
 
 class RemoteStdOutPipe(Pipes):
@@ -484,10 +479,10 @@ if __name__ == '__main__':
 
     domain, username, password, remoteName = re.compile('(?:(?:([^/@:]*)/)?([^@:]*)(?::([^@]*))?@)?(.*)').match(
         options.target).groups('')
-    
+
     #In case the password contains '@'
     if '@' in remoteName:
-        password = password + '@' + remoteName.rpartition('@')[0]
+        password = f'{password}@' + remoteName.rpartition('@')[0]
         remoteName = remoteName.rpartition('@')[2]
 
     if domain is None:
